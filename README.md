@@ -12,12 +12,25 @@
 - **[2025/06/13]** 🎉 [HomePage](https://jackory.github.io/pag/) released
 
 ## Installation
-This repository is based on verl commit 81a15ed7 (2025/04/03) and requires FSDP with vLLM>=0.8.2. Please refer to [verl installation](https://verl.readthedocs.io/en/latest/start/install.html) for setup instructions. Additionally, install [Math-Verify](https://github.com/huggingface/Math-Verify) as the verifier: `pip install math-verify`
+This repository is based on verl commit 81a15ed7 (2025/04/03) and requires FSDP with vLLM **0.8.2** (see upstream [verl install](https://verl.readthedocs.io/en/latest/start/install.html)). Also install [Math-Verify](https://github.com/huggingface/Math-Verify): `pip install math-verify`.
+
+**Local reproduction (recommended):** follow [`docs/ENV.md`](docs/ENV.md). File roles:
+
+| File | Role |
+|------|------|
+| `requirements.txt` | Declared deps (install entry) |
+| `environment.yml` | Conda skeleton + critical pins |
+| `requirements.freeze.txt` | Known-good `pip freeze` snapshot (**reference only**) |
+| `docker/Dockerfile.ngc.vllm0.8` | Container baseline |
+
+Critical pins used in our runs: Python 3.10, `torch==2.6.0`, `vllm==0.8.2`, `flash-attn==2.7.4.post1` (cu12/torch2.6 cxx11abiFALSE wheel).
 
 ## Quick Start
 We provide training scripts for PAG and baseline methods including [SCoRe](https://arxiv.org/pdf/2409.12917) and Direct_MultiTurn:
 
-- PAG: `bash quick_start/qwen1p5b_pag.sh`
+- PAG (upstream-style): `bash quick_start/qwen1p5b_pag.sh`
+- PAG (local paths / flags): `bash quick_start/run_pag_local.sh`
+- Eval (local): `bash quick_start/run_eval_local.sh`
 - SCoRe: `bash quick_start/qwen1p5b_SCoRe.sh` 
 - Direct_MultiTurn: `bash quick_start/qwen1p5b_multiturn.sh`
 

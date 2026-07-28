@@ -1,4 +1,6 @@
-# requirements.txt records the full set of dependencies for development
+# Declared dependencies (install entry). Prefer docs/ENV.md for torch/vllm/flash-attn order.
+# Known-good full snapshot: requirements.freeze.txt (reference only — do not blind-install).
+# Then: pip install -e .
 accelerate
 codetiming
 datasets
