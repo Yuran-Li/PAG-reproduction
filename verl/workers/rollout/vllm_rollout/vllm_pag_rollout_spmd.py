@@ -30,6 +30,7 @@ from torch import nn
 from typing import Any, Union
 from verl import DataProto
 from verl.utils.torch_functional import get_response_mask, pad_2d_list_to_length
+from verl.utils.reward_score.math_verify import compute_score as get_policy_score
 from verl.workers.rollout.base import BaseRollout
 from vllm.distributed import parallel_state as vllm_ps
 from vllm import LLM, SamplingParams
@@ -240,6 +241,13 @@ class vLLMPAGRollout(vLLMRollout):
         num_turns = prompts.meta_info.get('num_turns', self.num_turns)
         do_sample = prompts.meta_info.get('do_sample', True)
         is_validate = prompts.meta_info.get('validate', False)
+        # pag: revise when GenRM says wrong (default)
+        # oracle: revise iff turn-1 answer is actually incorrect (GT)
+        # always: always revise
+        revise_gate = prompts.meta_info.get('revise_gate', 'pag')
+        ground_truths = prompts.non_tensor_batch.get('ground_truth', None)
+        if revise_gate == 'oracle' and ground_truths is None:
+            raise ValueError("revise_gate=oracle requires non_tensor_batch['ground_truth']")
 
         # Configure sampling parameters
         if not do_sample:
@@ -371,7 +379,7 @@ class vLLMPAGRollout(vLLMRollout):
                 verification_tokens = active_verification[i][:verification_length].tolist()
                 verification_text = self.tokenizer.decode(verification_tokens, skip_special_tokens=True)
                 
-                # Judge verification result
+                # Judge verification result (still computed for metrics / dump)
                 judgment, prob = self._extract_judgment_and_probability(outputs[i], verification_text)
                 if answer_turn == 1:
                     verify_probs[original_idx] = prob
@@ -379,8 +387,24 @@ class vLLMPAGRollout(vLLMRollout):
                 if not hasattr(full_verify_probs[original_idx], 'append'):
                     full_verify_probs[original_idx] = []
                 full_verify_probs[original_idx].append(prob)
-                
-                if judgment == "wrong" or (is_validate and judgment != "correct"):
+
+                if revise_gate == 'always':
+                    should_revise = True
+                elif revise_gate == 'oracle':
+                    # Force revise only when the previous policy answer is actually wrong.
+                    t1_end = turns_positions[original_idx][1]
+                    t1_ids = combined_response[original_idx, :t1_end][
+                        multiturn_mask[original_idx, :t1_end]
+                    ]
+                    t1_text = self.tokenizer.decode(t1_ids.tolist(), skip_special_tokens=True)
+                    gt = ground_truths[original_idx]
+                    t1_acc = get_policy_score(solution_str=t1_text, ground_truth=gt)["acc"]
+                    should_revise = t1_acc < 0.5
+                else:
+                    # Default PAG selective revision
+                    should_revise = judgment == "wrong" or (is_validate and judgment != "correct")
+
+                if should_revise:
                     new_active_samples.append(original_idx)
                     # Add regeneration tokens
                     pos = current_positions[original_idx]

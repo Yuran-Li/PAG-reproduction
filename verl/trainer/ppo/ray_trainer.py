@@ -589,6 +589,15 @@ class RayPPOTrainer(object):
             input_texts = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in input_ids]
             sample_inputs.extend(input_texts)
 
+            # Keep GT for oracle/always revise gates before popping tensors.
+            revise_gate = self.config.actor_rollout_ref.rollout.val_kwargs.get('revise_gate', 'pag')
+            ground_truths = None
+            if 'reward_model' in test_batch.non_tensor_batch:
+                ground_truths = np.array(
+                    [rm.get('ground_truth', None) for rm in test_batch.non_tensor_batch['reward_model']],
+                    dtype=object,
+                )
+
             if 'multi_modal_inputs' in test_batch.non_tensor_batch.keys():
                 test_gen_batch = test_batch.pop(
                     batch_keys=['input_ids', 'attention_mask', 'position_ids'],
@@ -599,6 +608,8 @@ class RayPPOTrainer(object):
                     batch_keys=['input_ids', 'attention_mask', 'position_ids'],
                     non_tensor_batch_keys=['raw_prompt_ids'],
                 )
+            if ground_truths is not None:
+                test_gen_batch.non_tensor_batch['ground_truth'] = ground_truths
             if self.config.actor_rollout_ref.rollout.val_kwargs.num_turns is not None:
                 num_turns = self.config.actor_rollout_ref.rollout.val_kwargs.num_turns
             else:
@@ -609,7 +620,8 @@ class RayPPOTrainer(object):
                 'recompute_log_prob': False,
                 'do_sample': self.config.actor_rollout_ref.rollout.val_kwargs.do_sample,
                 'validate': True,
-                'num_turns': num_turns
+                'num_turns': num_turns,
+                'revise_gate': revise_gate,
             }
             test_gen_batch.meta_info.update(val_kwargs)
             print(f'test_gen_batch meta info: {test_gen_batch.meta_info}')

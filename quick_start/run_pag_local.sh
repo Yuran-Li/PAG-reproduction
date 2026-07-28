@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Local PAG reproduction on this machine (8x RTX 6000 Ada).
+set -euo pipefail
+set -x
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+# Prefer local HF cache / model snapshot
+export HF_HOME="${HF_HOME:-/data/yuranli/hf-cache}"
+export HF_HUB_CACHE="${HF_HUB_CACHE:-/data/yuranli/hf-cache/hub}"
+export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-/data/yuranli/hf-cache/hub}"
+export VLLM_WORKER_MULTIPROC_METHOD=spawn
+# vLLM 0.8 defaults to V1 engine; its profile_run hits
+# "Could not infer dtype of numpy.int64" with this stack. Use V0.
+export VLLM_USE_V1=0
+export TOKENIZERS_PARALLELISM=true
+export NCCL_DEBUG="${NCCL_DEBUG:-WARN}"
+# Avoid ~/.local site-packages polluting this env
+export PYTHONNOUSERSITE=1
+
+math500="$REPO_ROOT/datasets/math500.parquet"
+math7500="$REPO_ROOT/datasets/math7500.parquet"
+
+PROJECT_NAME='PAG'
+CKPT_PATH="${CKPT_PATH:-$REPO_ROOT/checkpoints}"
+MODEL_PATH="${MODEL_PATH:-/data/yuranli/hf-cache/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306}"
+
+EXPERIMENT_NAME="${EXPERIMENT_NAME:-qwen1p5b_pag}"
+n=4
+rollout_type=pag
+num_turns=2
+policy_rs=True
+rs_coef=1.0
+norm_type=role
+
+# Default: console only (set USE_WANDB=1 to enable wandb)
+if [[ "${USE_WANDB:-0}" == "1" ]]; then
+  LOGGER="['console','wandb']"
+else
+  LOGGER="['console']"
+fi
+
+# GPU count: override with N_GPUS if needed
+N_GPUS="${N_GPUS:-8}"
+
+python3 -m verl.trainer.main_ppo \
+    algorithm.adv_estimator=gae \
+    data.train_files=[$math7500] \
+    data.val_files="['$math500']" \
+    data.filter_overlong_prompts=True \
+    data.train_batch_size=512 \
+    data.max_prompt_length=1024 \
+    data.max_response_length=2048 \
+    actor_rollout_ref.model.path=$MODEL_PATH \
+    actor_rollout_ref.model.use_remove_padding=True \
+    actor_rollout_ref.actor.use_dynamic_bsz=True \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=16384 \
+    actor_rollout_ref.rollout.max_num_batched_tokens=16384 \
+    actor_rollout_ref.rollout.enforce_eager=False \
+    actor_rollout_ref.rollout.free_cache_engine=False \
+    actor_rollout_ref.actor.optim.lr=1e-6 \
+    actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=128 \
+    actor_rollout_ref.actor.fsdp_config.param_offload=False \
+    actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
+    actor_rollout_ref.actor.use_kl_loss=False \
+    actor_rollout_ref.actor.entropy_coeff=0 \
+    actor_rollout_ref.actor.clip_ratio_high=0.28 \
+    actor_rollout_ref.actor.clip_ratio_low=0.2 \
+    actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
+    actor_rollout_ref.rollout.name=vllm \
+    actor_rollout_ref.rollout.gpu_memory_utilization=${GPU_MEM_UTIL:-0.6} \
+    actor_rollout_ref.rollout.n=$n \
+    actor_rollout_ref.rollout.top_k=10000 \
+    actor_rollout_ref.rollout.num_turns=$num_turns \
+    actor_rollout_ref.rollout.rollout_type=$rollout_type \
+    actor_rollout_ref.rollout.val_kwargs.n=8 \
+    actor_rollout_ref.rollout.val_kwargs.do_sample=True \
+    actor_rollout_ref.rollout.val_kwargs.top_k=-1 \
+    actor_rollout_ref.rollout.val_kwargs.top_p=0.95 \
+    actor_rollout_ref.rollout.val_kwargs.temperature=0.6 \
+    actor_rollout_ref.rollout.val_kwargs.num_turns=2 \
+    reward_model.policy_rs=$policy_rs \
+    reward_model.rs_coef=$rs_coef \
+    critic.optim.lr=2e-6 \
+    critic.use_dynamic_bsz=True \
+    critic.model.use_remove_padding=True \
+    critic.model.path=$MODEL_PATH \
+    critic.model.fsdp_config.param_offload=True \
+    critic.model.fsdp_config.optimizer_offload=True \
+    algorithm.use_kl_in_reward=False \
+    algorithm.norm_type=$norm_type \
+    trainer.logger=$LOGGER \
+    trainer.project_name=$PROJECT_NAME \
+    trainer.experiment_name=$EXPERIMENT_NAME \
+    trainer.n_gpus_per_node=$N_GPUS \
+    trainer.nnodes=1 \
+    trainer.save_freq=10 \
+    trainer.test_freq=10 \
+    trainer.total_epochs=40 \
+    trainer.default_local_dir=$CKPT_PATH/$PROJECT_NAME/$EXPERIMENT_NAME \
+    trainer.val_before_train=True \
+    trainer.resume_mode=auto \
+    trainer.log_val_generations=2

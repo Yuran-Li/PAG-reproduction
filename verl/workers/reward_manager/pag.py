@@ -81,6 +81,13 @@ class PAGRewardManager:
             
             metrics_tensors['turn_counts'][i] = len(turn_boundaries) - 1
             sample_answers = []
+            final_turn = int(data_item.non_tensor_batch.get("final_generation_turn", 0))
+            acc_t2 = None
+            pred_t2 = None
+            revised = False
+            genrm_pred = None
+            genrm_score = None
+            genrm_probs = None
                 
             # Process first turn
             first_response = self.tokenizer.decode(response_ids[:turn_boundaries[0]])
@@ -117,9 +124,12 @@ class PAGRewardManager:
                 
                 # Store verification info
                 if turn == 1:
-                    reward_extra_info["genrm_pred"].append(verify_result["genrm_pred"])
-                    reward_extra_info["genrm_score"].append(verify_result["genrm_score"])
-                    reward_extra_info["genrm_probs"].append(data_item.non_tensor_batch["verify_probs"])
+                    genrm_pred = verify_result["genrm_pred"]
+                    genrm_score = verify_result["genrm_score"]
+                    genrm_probs = data_item.non_tensor_batch.get("verify_probs", None)
+                    reward_extra_info["genrm_pred"].append(genrm_pred)
+                    reward_extra_info["genrm_score"].append(genrm_score)
+                    reward_extra_info["genrm_probs"].append(genrm_probs)
                 if self.end_with_verifer:
                     reward_extra_info["all_genrm_pred"][-1].append(verify_result["genrm_pred"])
                     reward_extra_info["all_genrm_score"][-1].append(verify_result["genrm_score"])
@@ -151,12 +161,33 @@ class PAGRewardManager:
                 gt_judge = policy_result["acc"] >= 0.5
                 
                 if turn == 1:
+                    revised = True
+                    acc_t2 = policy_result["acc"]
+                    pred_t2 = policy_result["pred"]
                     sample_answers.append(policy_result['pred'])
                     answer_logs.append(sample_answers)
                 if self.end_with_verifer:
                     reward_extra_info["all_pred"][-1].append(policy_result["pred"])
                     reward_extra_info["all_acc"][-1].append(policy_result["acc"])
             
+            # Per-sample rectify-analysis exports (always aligned with batch index)
+            acc_t1 = first_result["acc"]
+            acc_final = acc_t2 if revised else acc_t1
+            reward_extra_info["ground_truth"].append(ground_truth)
+            reward_extra_info["data_source"].append(data_source)
+            reward_extra_info["acc_t1"].append(float(acc_t1))
+            reward_extra_info["pred_t1"].append(first_result["pred"])
+            reward_extra_info["acc_t2"].append(float(acc_t2) if acc_t2 is not None else -1.0)
+            reward_extra_info["pred_t2"].append(pred_t2 if pred_t2 is not None else "")
+            reward_extra_info["revised"].append(bool(revised))
+            reward_extra_info["final_turn"].append(int(final_turn))
+            reward_extra_info["acc_final"].append(float(acc_final))
+            # Keep genrm_* lists aligned even if verify segment missing
+            if genrm_pred is None:
+                reward_extra_info["genrm_pred"].append("none")
+                reward_extra_info["genrm_score"].append(0.0)
+                reward_extra_info["genrm_probs"].append(None)
+
             # Debug output
             if self.num_examine > 0 and printed_sources.get(data_source, 0) < self.num_examine:
                 printed_sources[data_source] = printed_sources.get(data_source, 0) + 1
