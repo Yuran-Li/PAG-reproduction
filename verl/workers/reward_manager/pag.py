@@ -193,8 +193,10 @@ class PAGRewardManager:
                 printed_sources[data_source] = printed_sources.get(data_source, 0) + 1
                 full_sequence = torch.cat((data_item.batch['prompts'], response_ids))
                 print(self.tokenizer.decode(full_sequence, skip_special_tokens=True))
-            if self.end_with_verifer:
-                reward_extra_info["response"].append(self.tokenizer.decode(response_ids, skip_special_tokens=True))
+            # Always export the full multi-turn response text (y0 + verify + regenerate,
+            # if any) so it can be dumped via trainer.save_validation_results=True.
+            # Previously gated behind end_with_verifer, which also changes rollout behavior.
+            reward_extra_info["response"].append(self.tokenizer.decode(response_ids, skip_special_tokens=True))
         
         # Compute metrics
         data_sources = None
