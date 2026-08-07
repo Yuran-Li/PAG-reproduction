@@ -72,6 +72,82 @@ Outputs:
 - `results/pag_ppo400_at{1,8}.metrics.json`
 - `results/table_pag_controlled_rectify.tex`
 
+## Diagnose Reward Informativeness
+
+Goal: for each fixed wrong `(problem, y0)`, sample `M` verify texts (specific critiques),
+then under each verify sample `K` regenerate outcomes; decompose variance into:
+
+- between-critique utility variation: `Var_j(p_j)`, where `p_j = mean_k a2(j,k)`
+- within-critique outcome variance: `mean_j p_j(1-p_j)`
+- `rho = Var_between / (Var_between + Var_within)`
+
+Also quantify GRPO group composition (all-zero / all-one / informative mixed) and
+compare 4 conditions on the same pool/rectifier/temperature:
+
+- specific critique (sampled verifies)
+- generic feedback
+- no feedback (`The answer is wrong.` only)
+- independent re-solving (problem only)
+
+`sample_verifies_multi.py` writes both:
+- `verifies_raw`: model output as sampled
+- `verifies_for_regen`: strip verdict + force `The answer is wrong.` (used for regenerate)
+- `verifies_verdict_raw`: parsed raw verdict per sample (`correct` / `wrong` / `none`)
+
+Run:
+
+```bash
+# defaults diagnose PPO-400 model for both verify and rectify
+export DIAG_TAG=pag_ppo400
+export DIAG_M=8
+export DIAG_K=8
+export DIAG_TEMP=0.7
+# optional override:
+# export DIAG_VERIFY_MODEL=$PPO_HF
+# export DIAG_RECTIFIER_MODEL=$PPO_HF
+
+bash tools/controlled_rectify/run_pipeline.sh diag_sample_verify
+bash tools/controlled_rectify/run_pipeline.sh diag_informativeness
+bash tools/controlled_rectify/run_pipeline.sh diag_aggregate
+# or one-shot:
+bash tools/controlled_rectify/run_pipeline.sh diag_all
+```
+
+Outputs:
+
+- `results/reward_informativeness_<tag>_M<M>_K<K>.jsonl`
+- `results/reward_informativeness_<tag>_M<M>_K<K>.summary.json`
+- `results/reward_informativeness_<tag>_M<M>_K<K>_tables.tex`
+
+## Causal rectify eval (feedback × edit constraint)
+
+Clean ablation **before joint RL**: same wrong pool / same rectifier / same budget;
+only change feedback content and whether editing must preserve the correct prefix.
+
+Feedback axis: regenerate / wrong_only / localization / loc+analysis / loc+analysis+plan / freeform  
+Edit axis: full_regen vs prefix_rewrite  
+
+```bash
+# Teacher structured feedback v=(c,t*,e,p)
+# Prefer GPT if OPENAI_API_KEY is set; otherwise falls back to local PPO HF as teacher.
+export CAUSAL_BACKEND=auto   # or gpt / local
+export TP=1
+CUDA_VISIBLE_DEVICES=0 bash tools/controlled_rectify/run_pipeline.sh causal_teacher
+
+# 2D matrix (@1 by default)
+CUDA_VISIBLE_DEVICES=0 bash tools/controlled_rectify/run_pipeline.sh causal_eval
+bash tools/controlled_rectify/run_pipeline.sh causal_aggregate
+# or one-shot:
+CUDA_VISIBLE_DEVICES=0 bash tools/controlled_rectify/run_pipeline.sh causal_all
+```
+
+Outputs:
+- `data/fixed_wrong_pag_prerl_teacher_structured.jsonl`
+- `results/causal_rectify_pag_ppo400.jsonl`
+- `results/causal_rectify_pag_ppo400.summary.json` / `_tables.tex`
+
+Reported metrics: W2C, PPR, FCR, \(\Delta_{\mathrm{critique}}\) (true vs shuffled plan).
+
 ## Note on GPUs / vLLM
 
 Pool + eval need free GPUs. Critique (GPT) is **API-only** and can run while GPUs are busy.

@@ -31,7 +31,18 @@ sys.path.insert(0, str(S2R_EVAL))
 from grader import math_equal  # noqa: E402
 from parser import extract_answer, strip_string  # noqa: E402
 
-SYSTEM = "Please reason step by step, and put your final answer within \\boxed{}."
+SYSTEM_FREE = (
+    "Please reason step by step, and put your final answer within \\boxed{}. "
+    "Separate each major reasoning step with a blank line."
+)
+SYSTEM_STRIDE = (
+    "Please reason step by step, and put your final answer within \\boxed{}. "
+    "You MUST wrap EACH distinct logical step in its own <step>...</step> tags. "
+    "Example:\n"
+    "<step>\nFirst observation or calculation.\n</step>\n"
+    "<step>\nNext deduction.\n</step>\n"
+    "Final answer: \\boxed{...}"
+)
 
 
 def extract_problem(prompt) -> str:
@@ -72,6 +83,12 @@ def main():
     ap.add_argument("--temperature", type=float, default=0.0)
     ap.add_argument("--data_name", default="math")
     ap.add_argument("--max_samples", type=int, default=-1)
+    ap.add_argument(
+        "--gen_format",
+        default="free",
+        choices=["free", "stride_tags"],
+        help="free: blank-line steps (SCOPE); stride_tags: <step> blocks (STRIDE)",
+    )
     args = ap.parse_args()
 
     df = pd.read_parquet(args.parquet)
@@ -113,10 +130,11 @@ def main():
         stop_token_ids=[tokenizer.eos_token_id] if tokenizer.eos_token_id is not None else None,
     )
 
+    system = SYSTEM_STRIDE if args.gen_format == "stride_tags" else SYSTEM_FREE
     prompts = []
     for p in problems:
         messages = [
-            {"role": "system", "content": SYSTEM},
+            {"role": "system", "content": system},
             {"role": "user", "content": p["problem"]},
         ]
         prompts.append(
@@ -125,7 +143,7 @@ def main():
             )
         )
 
-    print("Generating Pre-RL y0 ...")
+    print(f"Generating y0 gen_format={args.gen_format} ...")
     outs = llm.generate(prompts, sampling, use_tqdm=True)
 
     kept, excluded = [], []
@@ -139,6 +157,7 @@ def main():
             "y0_pred": pred,
             "grade_status": status,
             "source_model": args.model_path,
+            "gen_format": args.gen_format,
         }
         if status != "ok":
             excluded.append({**base, "a1_correct": None})

@@ -31,10 +31,13 @@ from pathlib import Path
 
 # Grade with S2R MATH parser (shared scoring; prompts are PAG-native)
 EVAL_DIR = Path("/data/yuranli/LLM/2026.04/github_references/S2R/tools/qwen_eval/eval")
+CR_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(EVAL_DIR))
+sys.path.insert(0, str(CR_DIR))
 
 from grader import math_equal  # noqa: E402
 from parser import extract_answer, strip_string  # noqa: E402
+from pag_verify_utils import GENERIC_VERIFY_ASSISTANT, ensure_wrong_close  # noqa: E402
 
 MAX_WRONG_CHARS = 3500
 
@@ -55,32 +58,11 @@ REGENERATE_USER = (
     "Please provide the correct solution to the math problem."
 )
 
-# Minimal verify assistant turn for ECR_gen (oracle: always reject)
-GENERIC_VERIFY_ASSISTANT = (
-    "The previous solution contains an error in its reasoning.\n"
-    "The answer is wrong."
-)
-
-WRONG_CLOSE = "The answer is wrong."
-
 
 def truncate(text: str, n: int = MAX_WRONG_CHARS) -> str:
     if len(text) <= n:
         return text
     return text[:n] + "\n[... truncated ...]"
-
-
-def ensure_wrong_close(text: str) -> str:
-    """PAG revise is gated on verify ending as wrong; force that closure."""
-    text = (text or "").strip()
-    if not text:
-        return GENERIC_VERIFY_ASSISTANT
-    # Avoid double closure
-    if text.rstrip().endswith(WRONG_CLOSE):
-        return text
-    if text.rstrip().endswith("The answer is wrong"):
-        return text.rstrip() + "."
-    return text.rstrip() + "\n" + WRONG_CLOSE
 
 
 def grade(text: str, gt: str, data_name: str = "math") -> bool:
