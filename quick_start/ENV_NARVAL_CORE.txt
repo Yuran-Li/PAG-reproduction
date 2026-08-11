@@ -1,0 +1,30 @@
+# Narval PAG env snapshot (validated userspace)
+# Python: 3.10.13 | Cluster: Narval | Date: 2026-08-11
+#
+# Files:
+#   requirements_narval.txt      — raw `pip freeze` (may contain local file:// wheels)
+#   requirements_narval_pins.txt — clean Name==version pins for cross-cluster targeting
+#
+# Nibi migration: pin userspace packages to these versions; only retarget
+# GPU/CUDA-native wheels (torch, flash-attn, triton, vllm, deepspeed if used)
+# to Nibi/H100-compatible Compute Canada builds. Prefer CC +computecanada wheels
+# matching cxx11_abi=True and CUDA 12.x.
+
+torch              2.6.0+computecanada   (runtime: 2.6.0, cuda 12.2, cxx11_abi=True)
+transformers       4.51.3+computecanada
+accelerate         1.4.0
+trl                NOT_INSTALLED
+vllm               0.8.4+computecanada
+ray                2.56.0
+flash-attn         2.5.7+computecanada
+triton             3.2.0+computecanada
+deepspeed          NOT_INSTALLED
+numpy              1.26.4+computecanada
+tokenizers         0.21.4
+huggingface-hub    0.30.2
+verl               0.2.0.dev0 (editable from this repo)
+
+# Likely to need Nibi-side wheel swap (H100 / cluster wheelhouse):
+#   torch, torchvision, torchaudio, flash-attn, triton, vllm
+# Keep aligned if possible:
+#   transformers, accelerate, tokenizers, huggingface-hub, numpy, ray

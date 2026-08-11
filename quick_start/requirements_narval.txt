@@ -1,0 +1,141 @@
+accelerate @ file:///home/yuranli/scratch/verify_then_rectify/PAG-reproduction/.tmp_whl/accelerate-1.4.0-py3-none-any.whl#sha256=f6e1e7dfaf9d799a20a1dc45efbf4b1546163eac133faa5acd0d89177c896e55
+aiohappyeyeballs==2.7.1+computecanada
+aiohttp==3.12.13+computecanada
+aiosignal==1.4.0+computecanada
+airportsdata==20260315+computecanada
+annotated-types==0.8.0
+annotated_doc==0.0.4+computecanada
+antlr4_python3_runtime==4.9.3+computecanada
+anyio==4.14.2+computecanada
+async_timeout==5.0.1+computecanada
+attrs==26.1.0+computecanada
+blake3==0.3.3+computecanada
+cachetools==7.1.6
+certifi==2026.7.22
+charset_normalizer==3.4.9+computecanada
+click==8.4.2+computecanada
+cloudpickle==3.1.2+computecanada
+codetiming==1.4.0+computecanada
+compressed_tensors==0.17.1+computecanada
+cupy-cuda12x==14.1.1
+datasets==5.0.0+computecanada
+depyf==0.20.0+computecanada
+dill==0.4.1+computecanada
+diskcache==5.6.3+computecanada
+distro==1.9.0+computecanada
+einops==0.8.2+computecanada
+exceptiongroup==1.3.1+computecanada
+fastapi==0.140.7
+filelock==3.32.0
+flash_attn @ file:///cvmfs/soft.computecanada.ca/custom/python/wheelhouse/gentoo2023/generic/flash_attn-2.5.7%2Bcomputecanada-cp310-cp310-linux_x86_64.whl#sha256=8d1fc54b6e1200ea81c6f9664c4a3a160cfaff63ff4a1d3c6e392218abd1d2f8
+frozenlist==1.8.0+computecanada
+fsspec==2026.6.0+computecanada
+gguf==0.19.0+computecanada
+gitdb==4.0.12+computecanada
+h11==0.16.0+computecanada
+httpcore==1.0.9+computecanada
+httptools==0.8.0
+httpx==0.28.1+computecanada
+huggingface-hub @ file:///lustre07/scratch/yuranli/verify_then_rectify/PAG-reproduction/.tmp_whl/huggingface_hub-0.30.2-py3-none-any.whl#sha256=68ff05969927058cfa41df4f2155d4bb48f5f54f719dd0390103eefa9b191e28
+hydra-core==1.3.4
+idna==3.18+computecanada
+importlib_metadata==9.0.0+computecanada
+interegular==0.3.3+computecanada
+jinja2==3.1.6+computecanada
+jiter==0.6.1+computecanada
+jsonschema==4.26.0+computecanada
+jsonschema-specifications @ file:///lustre07/scratch/yuranli/verify_then_rectify/PAG-reproduction/.tmp_whl/jsonschema_specifications-2025.9.1-py3-none-any.whl#sha256=98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe
+lark==1.3.1+computecanada
+latex2sympy2_extended @ file:///lustre07/scratch/yuranli/verify_then_rectify/PAG-reproduction/.tmp_whl/latex2sympy2_extended-1.11.0-py3-none-any.whl#sha256=aebb77d52ce269e25028e4bea89ddb14d242ba36bcf7b636496fb5fd9728d234
+liger_kernel==0.8.1
+lm_format_enforcer==0.11.3+computecanada
+markdown_it_py==4.2.0+computecanada
+MarkupSafe==2.1.5+computecanada
+math-verify @ file:///home/yuranli/scratch/verify_then_rectify/PAG-reproduction/.tmp_whl/math_verify-0.9.0-py3-none-any.whl#sha256=3703e7c4885354027fa84409d762a596a2906d1fd4deb78361876bd905a76194
+mdurl==0.1.2+computecanada
+mistral_common==1.11.7
+mpmath==1.3.0+computecanada
+msgpack==1.1.2+computecanada
+msgspec==0.18.6+computecanada
+multidict==6.7.1
+multiprocess==0.70.19+computecanada
+nest_asyncio==1.6.0+computecanada
+networkx==3.4.2+computecanada
+ninja==1.13.0+computecanada
+numba==0.61.0+computecanada
+numpy @ file:///cvmfs/soft.computecanada.ca/custom/python/wheelhouse/gentoo2023/generic/numpy-1.26.4%2Bcomputecanada-cp310-cp310-linux_x86_64.whl#sha256=a85dad329c39809304140945e8e8b823620b2c816d0e97df531e1ff9b3926abc
+omegaconf==2.3.1
+openai==2.49.0
+opentelemetry-api==1.44.0
+opentelemetry-exporter-otlp==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-semantic-conventions==0.65b0
+opentelemetry-semantic-conventions-ai==0.4.16
+orjson==3.11.9
+outlines==0.1.11+computecanada
+packaging==26.2+computecanada
+pandas==2.2.3+computecanada
+partial_json_parser==0.2.1.1.post7+computecanada
+peft==0.19.1+computecanada
+pillow==11.1.0+computecanada
+Pillow_SIMD==9.5.0.post2+computecanada
+platformdirs==4.11.0
+prometheus-fastapi-instrumentator==8.1.0
+prometheus_client==0.26.0
+propcache==0.5.2
+protobuf==7.35.1
+psutil==7.2.2+computecanada
+py_cpuinfo==9.0.0+computecanada
+pyarrow @ file:///lustre07/scratch/yuranli/verify_then_rectify/PAG-reproduction/.tmp_whl/pyarrow-25.0.0-cp310-cp310-linux_x86_64.whl#sha256=b72d943ff4e10fec8d48aedb23322d8f6ea8bc2d698b81db37e73730f69e4862
+pybind11==3.0.4+computecanada
+pycountry==26.2.16+computecanada
+pydantic==2.13.4+computecanada
+pydantic_core @ file:///lustre07/scratch/yuranli/verify_then_rectify/PAG-reproduction/.tmp_whl/pydantic_core-2.46.4-cp310-cp310-linux_x86_64.whl#sha256=395aebd9183f9d112f569aeb5b2214d1a10a33bec8456447f7fbdfa51d38d4cd
+pygments==2.20.0+computecanada
+pylatexenc==2.11
+pylint==3.3.6
+python_dateutil==2.9.0.post0+computecanada
+python_dotenv==1.2.2+computecanada
+python_json_logger==4.1.0+computecanada
+pytz==2026.3.post1
+PyYAML==6.0.2+computecanada
+pyzmq==27.1.0+computecanada
+ray @ file:///home/yuranli/scratch/verify_then_rectify/PAG-reproduction/.tmp_whl/ray-2.56.0-cp310-cp310-linux_x86_64.whl#sha256=58be75df2d4a6a85b5e514e4d3261760fe21cc09ba974ce22cc08a8e4e07c449
+referencing==0.37.0+computecanada
+regex==2024.9.11+computecanada
+requests==2.34.2+computecanada
+rich==15.0.0+computecanada
+rpds_py==0.20.0+computecanada
+safetensors==0.8.0+computecanada
+scipy==1.15.1+computecanada
+sentencepiece==0.2.0+computecanada
+sentry-sdk==2.66.1
+six==1.17.0+computecanada
+smmap==5.0.3+computecanada
+sniffio==1.3.1+computecanada
+starlette==1.3.1+computecanada
+sympy==1.13.1+computecanada
+tensordict @ file:///home/yuranli/scratch/verify_then_rectify/PAG-reproduction/.tmp_whl/tensordict-0.6.2-cp310-cp310-linux_x86_64.whl#sha256=24a505926cca17401411b9ed7377013c57dd49d579f350ac2e002d701a7f6cfd
+tiktoken==0.7.0+computecanada
+tokenizers @ file:///lustre07/scratch/yuranli/verify_then_rectify/PAG-reproduction/.tmp_whl/tokenizers-0.21.4-cp39-abi3-linux_x86_64.whl#sha256=51b7eabb104f46c1c50b486520555715457ae833d5aee9ff6ae853d1130506ff
+torch==2.6.0+computecanada
+torchaudio==2.6.0+computecanada
+torchdata==0.11.0+computecanada
+torchvision==0.21.0+computecanada
+tqdm==4.70.0
+transformers @ file:///cvmfs/soft.computecanada.ca/custom/python/wheelhouse/generic/transformers-4.51.3%2Bcomputecanada-py3-none-any.whl#sha256=f8c5a3f546b2b69fd8ce06164985b7575d15da9d42c2dad4e59266598d55b91b
+triton @ file:///cvmfs/soft.computecanada.ca/custom/python/wheelhouse/generic/triton-3.2.0%2Bcomputecanada-cp310-cp310-linux_x86_64.whl#sha256=47de36aca4ba8ae94590560c07141a9c995bd9911c5586a0fb1b9f9a36ac9b7a
+typing_extensions==4.16.0+computecanada
+typing_inspection==0.4.2+computecanada
+tzdata==2026.3
+urllib3==2.7.0+computecanada
+uvicorn==0.51.0+computecanada
+uvloop==0.22.1
+-e git+https://github.com/Yuran-Li/PAG-reproduction.git@3e744d548e913842e331fb0a181b043e10099695#egg=verl
+vllm @ file:///cvmfs/soft.computecanada.ca/custom/python/wheelhouse/gentoo2023/generic/vllm-0.8.4%2Bcomputecanada-cp38-abi3-linux_x86_64.whl#sha256=f72248414a9660cec0f5aa47ceaf1a13415e3df18f58ad2b14700ea99f156c92
+wandb @ file:///lustre07/scratch/yuranli/verify_then_rectify/PAG-reproduction/.tmp_whl/wandb-0.28.0-py3-none-linux_x86_64.whl#sha256=325b2d0bd88be6eda5db10542499bad3710927f2569c81a84dc5eeaffc76825c
+watchfiles==0.18.0+computecanada
+websockets==16.1.1
+xformers==0.0.35+torch210.computecanada
+xxhash==3.5.0+computecanada
+yarl==1.24.5
