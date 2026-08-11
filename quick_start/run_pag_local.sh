@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Local PAG reproduction on this machine (8x RTX 6000 Ada).
+# Local / cluster PAG reproduction (FSDP + vLLM).
+# Single node (e.g. 8 GPUs):  N_GPUS=8 NNODES=1 bash quick_start/run_pag_local.sh
+# Narval 2x4 A100:           started via quick_start/train_pag_narval.slurm
 set -euo pipefail
 set -x
 
@@ -7,9 +9,9 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 # Prefer local HF cache / model snapshot
-export HF_HOME="${HF_HOME:-/data/yuranli/hf-cache}"
-export HF_HUB_CACHE="${HF_HUB_CACHE:-/data/yuranli/hf-cache/hub}"
-export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-/data/yuranli/hf-cache/hub}"
+export HF_HOME="${HF_HOME:-${SCRATCH:-/scratch/$USER}/hf-cache}"
+export HF_HUB_CACHE="${HF_HUB_CACHE:-$HF_HOME/hub}"
+export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HOME/hub}"
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 # vLLM 0.8 defaults to V1 engine; its profile_run hits
 # "Could not infer dtype of numpy.int64" with this stack. Use V0.
@@ -24,7 +26,8 @@ math7500="$REPO_ROOT/datasets/math7500.parquet"
 
 PROJECT_NAME='PAG'
 CKPT_PATH="${CKPT_PATH:-$REPO_ROOT/checkpoints}"
-MODEL_PATH="${MODEL_PATH:-/data/yuranli/hf-cache/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306}"
+# Hub id or local snapshot path. Override MODEL_PATH for a local cache.
+MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-1.5B-Instruct}"
 
 EXPERIMENT_NAME="${EXPERIMENT_NAME:-qwen1p5b_pag}"
 n=4
@@ -41,8 +44,25 @@ else
   LOGGER="['console']"
 fi
 
-# GPU count: override with N_GPUS if needed
+# World size: N_GPUS per node × NNODES (Narval: often 4 GPUs/node × 2 nodes)
 N_GPUS="${N_GPUS:-8}"
+NNODES="${NNODES:-1}"
+
+# SMOKE=1: one train step after val_before_train (OOM / launch check)
+TOTAL_EPOCHS=40
+SAVE_FREQ=25
+TEST_FREQ=10
+VAL_BEFORE_TRAIN=True
+EXTRA_SMOKE_ARGS=()
+if [[ "${SMOKE:-0}" == "1" ]]; then
+  EXPERIMENT_NAME="${EXPERIMENT_NAME:-smoke_pag}"
+  TOTAL_EPOCHS=1
+  SAVE_FREQ=9999
+  TEST_FREQ=9999
+  VAL_BEFORE_TRAIN=True
+  EXTRA_SMOKE_ARGS+=(trainer.total_training_steps=1)
+  echo "[run_pag_local] SMOKE=1 → total_training_steps=1, val_before_train=True"
+fi
 
 python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=gae \
@@ -95,11 +115,12 @@ python3 -m verl.trainer.main_ppo \
     trainer.project_name=$PROJECT_NAME \
     trainer.experiment_name=$EXPERIMENT_NAME \
     trainer.n_gpus_per_node=$N_GPUS \
-    trainer.nnodes=1 \
-    trainer.save_freq=10 \
-    trainer.test_freq=10 \
-    trainer.total_epochs=40 \
+    trainer.nnodes=$NNODES \
+    trainer.save_freq=$SAVE_FREQ \
+    trainer.test_freq=$TEST_FREQ \
+    trainer.total_epochs=$TOTAL_EPOCHS \
     trainer.default_local_dir=$CKPT_PATH/$PROJECT_NAME/$EXPERIMENT_NAME \
-    trainer.val_before_train=True \
+    trainer.val_before_train=$VAL_BEFORE_TRAIN \
     trainer.resume_mode=auto \
-    trainer.log_val_generations=2
+    trainer.log_val_generations=2 \
+    "${EXTRA_SMOKE_ARGS[@]}"
