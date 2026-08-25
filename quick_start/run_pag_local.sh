@@ -23,11 +23,21 @@ export PYTHONNOUSERSITE=1
 
 math500="$REPO_ROOT/datasets/math500.parquet"
 math7500="$REPO_ROOT/datasets/math7500.parquet"
+dapo17k="$REPO_ROOT/datasets/dapo17k.parquet"
 
 PROJECT_NAME='PAG'
 CKPT_PATH="${CKPT_PATH:-$REPO_ROOT/checkpoints}"
 # Hub id or local snapshot path. Override MODEL_PATH for a local cache.
 MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-1.5B-Instruct}"
+
+# Paper data: 1.5B → math7500; 7B → dapo17k. Override with TRAIN_FILE=/path/to.parquet
+if [[ -n "${TRAIN_FILE:-}" ]]; then
+  train_file="$TRAIN_FILE"
+elif [[ "$MODEL_PATH" == *"7B"* || "$MODEL_PATH" == *"7b"* ]]; then
+  train_file="$dapo17k"
+else
+  train_file="$math7500"
+fi
 
 EXPERIMENT_NAME="${EXPERIMENT_NAME:-qwen1p5b_pag}"
 n=4
@@ -48,9 +58,16 @@ fi
 N_GPUS="${N_GPUS:-8}"
 NNODES="${NNODES:-1}"
 
+# Sequence lengths (override via env).
+# PAG max_model_len ≈ prompt + num_turns*response + (num_turns-1)*(200+response).
+# Qwen2.5-Math-* only has max_position_embeddings=4096 → need response<=896 with
+# prompt=1024, turns=2. Non-Math Qwen2.5-1.5B-Instruct can keep 1024/2048.
+MAX_PROMPT_LENGTH="${MAX_PROMPT_LENGTH:-1024}"
+MAX_RESPONSE_LENGTH="${MAX_RESPONSE_LENGTH:-2048}"
+
 # SMOKE=1: one train step after val_before_train (OOM / launch check)
 TOTAL_EPOCHS=40
-SAVE_FREQ=25
+SAVE_FREQ=20
 TEST_FREQ=10
 VAL_BEFORE_TRAIN=True
 EXTRA_SMOKE_ARGS=()
@@ -64,14 +81,16 @@ if [[ "${SMOKE:-0}" == "1" ]]; then
   echo "[run_pag_local] SMOKE=1 → total_training_steps=1, val_before_train=True"
 fi
 
+echo "[run_pag_local] MODEL_PATH=${MODEL_PATH} train_file=${train_file} prompt=${MAX_PROMPT_LENGTH} response=${MAX_RESPONSE_LENGTH} turns=${num_turns}"
+
 python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=gae \
-    data.train_files=[$math7500] \
+    data.train_files=[$train_file] \
     data.val_files="['$math500']" \
     data.filter_overlong_prompts=True \
     data.train_batch_size=512 \
-    data.max_prompt_length=1024 \
-    data.max_response_length=2048 \
+    data.max_prompt_length=$MAX_PROMPT_LENGTH \
+    data.max_response_length=$MAX_RESPONSE_LENGTH \
     actor_rollout_ref.model.path=$MODEL_PATH \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
@@ -90,7 +109,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.actor.clip_ratio_low=0.2 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
-    actor_rollout_ref.rollout.gpu_memory_utilization=${GPU_MEM_UTIL:-0.6} \
+    actor_rollout_ref.rollout.gpu_memory_utilization=${GPU_MEM_UTIL:-0.5} \
     actor_rollout_ref.rollout.n=$n \
     actor_rollout_ref.rollout.top_k=10000 \
     actor_rollout_ref.rollout.num_turns=$num_turns \

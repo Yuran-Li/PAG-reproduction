@@ -44,6 +44,25 @@ def _pre_process_inputs(pad_token_id, prompt_token_ids: torch.Tensor) -> List[in
     return prompt_token_ids[non_pad_index:].tolist()
 
 
+def _sanitize_token_ids(
+    token_ids: List[int], vocab_size: int, replace_id: int
+) -> List[int]:
+    """Replace ids outside tokenizer vocabulary (do not delete — avoids broken BPE).
+
+    Qwen HF configs often set vocab_size (e.g. 152064) > len(tokenizer) (e.g. 151665).
+    vLLM can sample those unused ids; feeding them back as the next-turn prompt
+    raises ValueError: Token id ... is out of vocabulary.
+    """
+    if not token_ids:
+        return token_ids
+    max_id = vocab_size - 1
+    out = []
+    for t in token_ids:
+        t = int(t)
+        out.append(t if 0 <= t <= max_id else replace_id)
+    return out
+
+
 def _repeat_interleave(value: Union[torch.Tensor, np.ndarray], repeats: int) -> Union[torch.Tensor, List[Any]]:
     if isinstance(value, torch.Tensor):
         return value.repeat_interleave(repeats, dim=0)
@@ -106,6 +125,9 @@ class vLLMPAGRollout(vLLMRollout):
         # Initialize basic attributes
         self.pad_token_id = tokenizer.pad_token_id
         self.tokenizer = tokenizer
+        # Prefer len(tokenizer): unused embedding rows above this are not valid prompt ids for vLLM
+        self.tokenizer_vocab_size = len(tokenizer)
+        self.eos_token_id = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else tokenizer.pad_token_id
         self.num_turns = config.get('num_turns', 2)
         self.is_only_genrm = config.get('is_only_genrm', False)
         self.end_with_verifer = config.get('end_with_verifer', False)
@@ -269,7 +291,14 @@ class vLLMPAGRollout(vLLMRollout):
             kwargs['n'] = 1
 
         # Preprocess inputs
-        current_inputs = [_pre_process_inputs(self.pad_token_id, idx[i]) for i in range(batch_size)]
+        current_inputs = [
+            _sanitize_token_ids(
+                _pre_process_inputs(self.pad_token_id, idx[i]),
+                self.tokenizer_vocab_size,
+                self.eos_token_id,
+            )
+            for i in range(batch_size)
+        ]
 
         # Initialize variables
         final_generation_turn = [0] * batch_size
@@ -303,8 +332,14 @@ class vLLMPAGRollout(vLLMRollout):
                 use_tqdm=False
             )
 
-        response = [output.outputs[sample_id].token_ids 
-                   for output in outputs for sample_id in range(len(output.outputs))]
+        response = [
+            _sanitize_token_ids(
+                list(output.outputs[sample_id].token_ids),
+                self.tokenizer_vocab_size,
+                self.eos_token_id,
+            )
+            for output in outputs for sample_id in range(len(output.outputs))
+        ]
         
         current_response = pad_2d_list_to_length(response, self.pad_token_id,
                                                max_length=self.config.response_length).to(idx.device)
@@ -341,7 +376,9 @@ class vLLMPAGRollout(vLLMRollout):
                 # Build GenRM input
                 response_tokens = combined_response[original_idx, :current_positions[original_idx]].tolist()
                 history = current_inputs[original_idx] + response_tokens
-                next_inputs.append(history)
+                next_inputs.append(
+                    _sanitize_token_ids(history, self.tokenizer_vocab_size, self.eos_token_id)
+                )
 
             # GenRM inference
             with self.update_sampling_params(**kwargs_for_verification):
@@ -352,8 +389,14 @@ class vLLMPAGRollout(vLLMRollout):
                     use_tqdm=False
                 )
             
-            verification_response = [output.outputs[sample_id].token_ids 
-                                   for output in outputs for sample_id in range(len(output.outputs))]
+            verification_response = [
+                _sanitize_token_ids(
+                    list(output.outputs[sample_id].token_ids),
+                    self.tokenizer_vocab_size,
+                    self.eos_token_id,
+                )
+                for output in outputs for sample_id in range(len(output.outputs))
+            ]
             active_verification = pad_2d_list_to_length(verification_response, self.pad_token_id,
                                                       max_length=self.config.response_length).to(idx.device)
             active_verification_mask = get_response_mask(active_verification, eos_token_id)
@@ -416,7 +459,9 @@ class vLLMPAGRollout(vLLMRollout):
 
                     response_tokens = combined_response[original_idx, :current_positions[original_idx]].tolist()
                     history = current_inputs[original_idx] + response_tokens
-                    next_inputs.append(history)
+                    next_inputs.append(
+                        _sanitize_token_ids(history, self.tokenizer_vocab_size, self.eos_token_id)
+                    )
                 else:
                     # Correct, record and stop generation for this sample
                     final_generation_turn[original_idx] = answer_turn - 1
@@ -435,8 +480,14 @@ class vLLMPAGRollout(vLLMRollout):
                     use_tqdm=False
                 )
             
-            regenerated_response = [output.outputs[sample_id].token_ids 
-                                  for output in outputs for sample_id in range(len(output.outputs))]
+            regenerated_response = [
+                _sanitize_token_ids(
+                    list(output.outputs[sample_id].token_ids),
+                    self.tokenizer_vocab_size,
+                    self.eos_token_id,
+                )
+                for output in outputs for sample_id in range(len(output.outputs))
+            ]
             active_response = pad_2d_list_to_length(regenerated_response, self.pad_token_id,
                                                   max_length=self.config.response_length).to(idx.device)
             active_response_mask = get_response_mask(active_response, eos_token_id)
